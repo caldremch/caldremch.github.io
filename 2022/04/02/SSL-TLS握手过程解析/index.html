@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+    <!-- title -->
+
+
+    
+
+<!-- keywords -->
+
+
+
+<head>
+    <meta charset="utf-8">
+    <meta name="google-site-verification" content="-WaeGNHcBy5E_3u_v_RcP5rb38aeKaixui5U_qnHrwc" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="author" content="Caldremch">
+    <meta name="renderer" content="webkit">
+    <meta name="copyright" content="Caldremch">
+    
+        <meta name="keywords" content="hexo,hexo-theme,hexo-blog">
+    
+    <meta name="description" content="">
+    <meta name="description" content="前言先说明一下标题, 为什么是SSL&#x2F;TLS(点击链接,了解详情), 两种协议的背景, 特点, 区别就不说了, 可以百科一下. 背景之前即使看了很多的资料,但是仍然理解得不够深, 而且也没什么印象, 也想通过源码阅读, 了解得更加的详细, 主要是总会有很多模糊的概念在脑中浮现, 不知道具体的流程是如何的, 即使知乎, CSDN也有很多讲的很好的文章, 但是总有有一些描述使自己产生疑惑,">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SSL&#x2F;TLS握手过程解析">
+<meta property="og:url" content="https://caldremch.cn/2022/04/02/SSL-TLS%E6%8F%A1%E6%89%8B%E8%BF%87%E7%A8%8B%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="前言先说明一下标题, 为什么是SSL&#x2F;TLS(点击链接,了解详情), 两种协议的背景, 特点, 区别就不说了, 可以百科一下. 背景之前即使看了很多的资料,但是仍然理解得不够深, 而且也没什么印象, 也想通过源码阅读, 了解得更加的详细, 主要是总会有很多模糊的概念在脑中浮现, 不知道具体的流程是如何的, 即使知乎, CSDN也有很多讲的很好的文章, 但是总有有一些描述使自己产生疑惑,">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/caldremch/blog-images/x509_format.png">
+<meta property="article:published_time" content="2022-04-02T23:52:27.000Z">
+<meta property="article:modified_time" content="2023-05-28T06:18:00.648Z">
+<meta property="article:author" content="Caldremch">
+<meta property="article:tag" content="网络通信">
+<meta property="article:tag" content="持续更新">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/caldremch/blog-images/x509_format.png">
+    <meta http-equiv="Cache-control" content="no-cache">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <link rel="icon" href="/assets/favicon.ico">
+    
+    <title>SSL/TLS握手过程解析 · Caldremch</title><meta name="robots" content="noindex">
+    <!-- /*! loadCSS. [c]2017 Filament Group, Inc. MIT License */
+/* This file is meant as a standalone workflow for
+- testing support for link[rel=preload]
+- enabling async CSS loading in browsers that do not support rel=preload
+- applying rel preload css once loaded, whether supported or not.
+*/ -->
+<script>
+    (function (w) {
+        'use strict'
+        // rel=preload support test
+        if (!w.loadCSS) {
+            w.loadCSS = function () {}
+        }
+        // define on the loadCSS obj
+        var rp = (loadCSS.relpreload = {})
+        // rel=preload feature support test
+        // runs once and returns a function for compat purposes
+        rp.support = (function () {
+            var ret
+            try {
+                ret = w.document.createElement('link').relList.supports('preload')
+            } catch (e) {
+                ret = false
+            }
+            return function () {
+                return ret
+            }
+        })()
+
+        // if preload isn't supported, get an asynchronous load by using a non-matching media attribute
+        // then change that media back to its intended value on load
+        rp.bindMediaToggle = function (link) {
+            // remember existing media attr for ultimate state, or default to 'all'
+            var finalMedia = link.media || 'all'
+
+            function enableStylesheet() {
+                link.media = finalMedia
+            }
+
+            // bind load handlers to enable media
+            if (link.addEventListener) {
+                link.addEventListener('load', enableStylesheet)
+            } else if (link.attachEvent) {
+                link.attachEvent('onload', enableStylesheet)
+            }
+
+            // Set rel and non-applicable media type to start an async request
+            // note: timeout allows this to happen async to let rendering continue in IE
+            setTimeout(function () {
+                link.rel = 'stylesheet'
+                link.media = 'only x'
+            })
+            // also enable media after 3 seconds,
+            // which will catch very old browsers (android 2.x, old firefox) that don't support onload on link
+            setTimeout(enableStylesheet, 3000)
+        }
+
+        // loop through link elements in DOM
+        rp.poly = function () {
+            // double check this to prevent external calls from running
+            if (rp.support()) {
+                return
+            }
+            var links = w.document.getElementsByTagName('link')
+            for (var i = 0; i < links.length; i++) {
+                var link = links[i]
+                // qualify links to those with rel=preload and as=style attrs
+                if (
+                    link.rel === 'preload' &&
+                    link.getAttribute('as') === 'style' &&
+                    !link.getAttribute('data-loadcss')
+                ) {
+                    // prevent rerunning on link
+                    link.setAttribute('data-loadcss', true)
+                    // bind listeners to toggle media back
+                    rp.bindMediaToggle(link)
+                }
+            }
+        }
+
+        // if unsupported, run the polyfill
+        if (!rp.support()) {
+            // run once at least
+            rp.poly()
+
+            // rerun poly on an interval until onload
+            var run = w.setInterval(rp.poly, 500)
+            if (w.addEventListener) {
+                w.addEventListener('load', function () {
+                    rp.poly()
+                    w.clearInterval(run)
+                })
+            } else if (w.attachEvent) {
+                w.attachEvent('onload', function () {
+                    rp.poly()
+                    w.clearInterval(run)
+                })
+            }
+        }
+
+        // commonjs
+        if (typeof exports !== 'undefined') {
+            exports.loadCSS = loadCSS
+        } else {
+            w.loadCSS = loadCSS
+        }
+    })(typeof global !== 'undefined' ? global : this)
+</script>
+
+    <style type="text/css">
+    @font-face {
+        font-family: 'Oswald-Regular';
+        src: url("/font/Oswald-Regular.ttf");
+    }
+
+    body {
+        margin: 0;
+    }
+
+    header,
+    footer,
+    .back-top,
+    .sidebar,
+    .container,
+    .site-intro-meta,
+    .toc-wrapper {
+        display: none;
+    }
+
+    .site-intro {
+        position: relative;
+        z-index: 3;
+        width: 100%;
+        /* height: 50vh; */
+        overflow: hidden;
+    }
+
+    .site-intro-placeholder {
+        position: absolute;
+        z-index: -2;
+        top: 0;
+        left: 0;
+        width: calc(100% + 300px);
+        height: 100%;
+        background: repeating-linear-gradient(-45deg, #444 0, #444 80px, #333 80px, #333 160px);
+        background-position: center center;
+        transform: translate3d(-226px, 0, 0);
+        animation: gradient-move 2.5s ease-out 0s infinite;
+    }
+
+    @keyframes gradient-move {
+        0% {
+            transform: translate3d(-226px, 0, 0);
+        }
+        100% {
+            transform: translate3d(0, 0, 0);
+        }
+    }
+</style>
+
+    <link rel="preload" href="/css/style.css?v=20211217" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="/css/dark.css?v=20211217" as="style">
+    <link rel="stylesheet" href="/css/dark.css">
+    <link rel="stylesheet" href="/css/mobile.css?v=20211217" media="(max-width: 960px)">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" as="script">
+    <link rel="preload" href="/scripts/main.js?v=20211217" as="script">
+    <link rel="preload" href="/scripts/dark.js?v=20211217" as="script">
+    <link rel="preload" href="/font/Oswald-Regular.ttf" as="font" crossorigin>
+    <link rel="preload" href="https://at.alicdn.com/t/font_327081_1dta1rlogw17zaor.woff" as="font" crossorigin>
+    <!-- algolia -->
+    
+    <!-- 百度统计  -->
+    
+    <!-- 谷歌统计  -->
+    
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script type="text/javascript">
+        if (typeof window.$ == undefined) {
+            console.warn('jquery load from jsdelivr failed, will load local script')
+            document.write('<script src="/lib/jquery.min.js" />')
+        }
+    </script>
+    
+        <body class="post-body">
+    
+        <!-- header -->
+        <header class="header header-mobile">
+    <!-- top read progress line -->
+    <div class="header-element">
+        <div class="read-progress"></div>
+    </div>
+    <!-- sidebar menu button -->
+    <div class="header-element">
+        
+            <div class="header-sidebar-menu">
+        
+            
+                <div style="padding-left: 1px;">&#xe775;</div>
+            
+        </div>
+    </div>
+    <!-- header actions -->
+    <div class="header-actions">
+        <!-- theme mode switch button -->
+        <span class="header-theme-btn header-element">
+            <i class="fas fa-adjust"></i>
+        </span>
+        <!-- back to home page text -->
+        <span class="home-link header-element">
+            <a href=/>Caldremch</a>
+        </span>
+    </div>
+    <!-- toggle banner for post layout -->
+    
+        
+            <div class="banner">
+        
+            <div class="blog-title header-element">
+                <a href="/">Caldremch</a>
+            </div>
+            <div class="post-title header-element">
+                <a href="#" class="post-name">SSL/TLS握手过程解析</a>
+            </div>
+        </div>
+    
+</header>
+
+        <!-- fixed footer -->
+        <footer class="footer-fixed">
+    <!-- back to top button -->
+    <div class="footer-fixed-element">
+        
+            <div class="back-top back-top-hidden">
+        
+        
+            <div>&#xe639;</div>
+        
+        </div>
+    </div>
+</footer>
+
+        <!-- wrapper -->
+        <div class="wrapper">
+            <div class="site-intro" style="
+
+
+
+
+
+
+
+    height:50vh;
+
+">
+    
+    <!-- 主页  -->
+    
+        
+    <!-- 404页  -->
+            
+    <div class="site-intro-placeholder"></div>
+    <div class="site-intro-img" style="background-image: url(https://cdn.jsdelivr.net/gh/caldremch/blog-images/post-bg.jpg)"></div>
+    <div class="site-intro-meta">
+        <!-- 标题  -->
+        <h1 class="intro-title">
+            <!-- 主页  -->
+            
+                SSL/TLS握手过程解析
+            <!-- 404 -->
+            
+        </h1>
+        <!-- 副标题 -->
+        <p class="intro-subtitle">
+            <!-- 主页副标题  -->
+            
+                
+            <!-- 404 -->
+            
+        </p>
+        <!-- 文章页 meta -->
+        
+            <div class="post-intros">
+                <!-- 文章页标签  -->
+                
+                    <div class= post-intro-tags >
+    
+    
+        <a class="post-tag" href="javascript:void(0);" data-tags="网络通信">网络通信</a>
+    
+        <a class="post-tag" href="javascript:void(0);" data-tags="持续更新">持续更新</a>
+    
+</div>
+
+                
+                
+                    <div class="post-intro-read">
+                        <span>Word count: <span class="post-count word-count">2.2k</span>Reading time: <span class="post-count reading-time">7 min</span></span>
+                    </div>
+                
+                <div class="post-intro-meta">
+                    <!-- 撰写日期 -->
+                    <span class="iconfont-archer post-intro-calander">&#xe676;</span>
+                    <span class="post-intro-time">2022/04/02</span>
+                    <!-- busuanzi -->
+                    
+                        <span id="busuanzi_container_page_pv" class="busuanzi-pv">
+                            <span class="iconfont-archer post-intro-busuanzi">&#xe602;</span>
+                            <span id="busuanzi_value_page_pv"></span>
+                        </span>
+                    
+                    <!-- 文章分享 -->
+                    <span class="share-wrapper">
+                        <span class="iconfont-archer share-icon">&#xe71d;</span>
+                        <span class="share-text">Share</span>
+                        <ul class="share-list">
+                            <li class="iconfont-archer share-qr" data-type="qr">&#xe75b;
+                                <div class="share-qrcode"></div>
+                            </li>
+                            <li class="iconfont-archer" data-type="weibo">&#xe619;</li>
+                            <li class="iconfont-archer" data-type="qzone">&#xe62e;</li>
+                            <li class="iconfont-archer" data-type="twitter">&#xe634;</li>
+                            <li class="iconfont-archer" data-type="facebook">&#xe67a;</li>
+                        </ul>
+                    </span>
+                </div>
+            </div>
+        
+    </div>
+</div>
+
+            <script>
+  // get user agent
+  function getBrowserVersions() {
+    var u = window.navigator.userAgent
+    return {
+      userAgent: u,
+      trident: u.indexOf('Trident') > -1, //IE内核
+      presto: u.indexOf('Presto') > -1, //opera内核
+      webKit: u.indexOf('AppleWebKit') > -1, //苹果、谷歌内核
+      gecko: u.indexOf('Gecko') > -1 && u.indexOf('KHTML') == -1, //火狐内核
+      mobile: !!u.match(/AppleWebKit.*Mobile.*/), //是否为移动终端
+      ios: !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/), //ios终端
+      android: u.indexOf('Android') > -1 || u.indexOf('Linux') > -1, //android终端或者uc浏览器
+      iPhone: u.indexOf('iPhone') > -1 || u.indexOf('Mac') > -1, //是否为iPhone或者安卓QQ浏览器
+      iPad: u.indexOf('iPad') > -1, //是否为iPad
+      webApp: u.indexOf('Safari') == -1, //是否为web应用程序，没有头部与底部
+      weixin: u.indexOf('MicroMessenger') == -1, //是否为微信浏览器
+      uc: u.indexOf('UCBrowser') > -1, //是否为android下的UC浏览器
+    }
+  }
+  var browser = {
+    versions: getBrowserVersions(),
+  }
+  console.log('userAgent: ' + browser.versions.userAgent)
+
+  // callback
+  function fontLoaded() {
+    console.log('font loaded')
+    if (document.getElementsByClassName('site-intro-meta')) {
+      document
+        .getElementsByClassName('intro-title')[0]
+        .classList.add('intro-fade-in')
+      document
+        .getElementsByClassName('intro-subtitle')[0]
+        .classList.add('intro-fade-in')
+      var postIntros = document.getElementsByClassName('post-intros')[0]
+      if (postIntros) {
+        postIntros.classList.add('post-fade-in')
+      }
+    }
+  }
+
+  // UC不支持跨域，所以直接显示
+  function asyncCb() {
+    if (browser.versions.uc) {
+      console.log('UCBrowser')
+      fontLoaded()
+    } else {
+      WebFont.load({
+        custom: {
+          families: ['Oswald-Regular'],
+        },
+        loading: function () {
+          // 所有字体开始加载
+          // console.log('font loading');
+        },
+        active: function () {
+          // 所有字体已渲染
+          fontLoaded()
+        },
+        inactive: function () {
+          // 字体预加载失败，无效字体或浏览器不支持加载
+          console.log('inactive: timeout')
+          fontLoaded()
+        },
+        timeout: 5000, // Set the timeout to two seconds
+      })
+    }
+  }
+
+  function asyncErr() {
+    console.warn('script load from CDN failed, will load local script')
+  }
+
+  // load webfont-loader async, and add callback function
+  function async(u, cb, err) {
+    var d = document,
+      t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0]
+    o.src = u
+    if (cb) {
+      o.addEventListener(
+        'load',
+        function (e) {
+          cb(null, e)
+        },
+        false
+      )
+    }
+    if (err) {
+      o.addEventListener(
+        'error',
+        function (e) {
+          err(null, e)
+        },
+        false
+      )
+    }
+    s.parentNode.insertBefore(o, s)
+  }
+
+  var asyncLoadWithFallBack = function (arr, success, reject) {
+    var currReject = function () {
+      reject()
+      arr.shift()
+      if (arr.length) async(arr[0], success, currReject)
+    }
+
+    async(arr[0], success, currReject)
+  }
+
+  asyncLoadWithFallBack(
+    [
+      'https://cdn.jsdelivr.net/npm/webfontloader@1.6.28/webfontloader.min.js',
+      'https://cdn.bootcss.com/webfont/1.6.28/webfontloader.js',
+      "/lib/webfontloader.min.js",
+    ],
+    asyncCb,
+    asyncErr
+  )
+</script>
+
+            <img class="loading" src="/assets/loading.svg" style="display: block; margin: 6rem auto 0 auto; width: 6rem; height: 6rem;" />
+            <div class="container container-unloaded">
+                <main class="main post-page">
+    <article class="article-entry">
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>先说明一下标题, 为什么是<a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/%E5%82%B3%E8%BC%B8%E5%B1%A4%E5%AE%89%E5%85%A8%E6%80%A7%E5%8D%94%E5%AE%9A">SSL&#x2F;TLS</a>(点击链接,了解详情), 两种协议的背景, 特点, 区别就不说了, 可以百科一下.</p>
+<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>之前即使看了很多的资料,但是仍然理解得不够深, 而且也没什么印象, 也想通过源码阅读, 了解得更加的详细, 主要是总会有很多模糊的概念在脑中浮现, 不知道具体的流程是如何的, 即使知乎, CSDN也有很多讲的很好的文章, 但是总有有一些描述使自己产生疑惑, 无法寻求答案, 也不太能理解文字被后的含义, 通过阅读稳定的源码, 能切实了解到所有流程, 正好也能弥补自己在整个网络通信中的这一环能理解清楚, 不”躬行”, 真的没意思, 因为它就不是你能转换过来的</p>
+<h1 id="了解这个对我有什么意义"><a href="#了解这个对我有什么意义" class="headerlink" title="了解这个对我有什么意义?"></a>了解这个对我有什么意义?</h1><ul>
+<li>解决心中的疑惑</li>
+<li>我不喜欢一个知识需要我说, 但我又说不明白</li>
+<li>我的工作涉及到相关知识时, 提供思路</li>
+<li>现在的学习技术的阶段, 深入了解是我职业生涯里面需要做的</li>
+<li>再不看, 我可能以后没有机会看了(比如5年后对其他领域的深入)</li>
+</ul>
+<h1 id="源码版本"><a href="#源码版本" class="headerlink" title="源码版本"></a>源码版本</h1><p>说了这么多废话, 终于进入正题了, 文章的源码说明是基于openssl 3.0 版本进行, 源码版本的核心思想是不变的, 所以只需要关注核心的逻辑以及自己想了解的部分, 不然容易迷失在各种api的调用当中</p>
+<h1 id="流程"><a href="#流程" class="headerlink" title="流程"></a>流程</h1><p>先列举出整体流程， 然后再逐步细说。</p>
+<p>安全握手之前，需要先进行tcp的三次握手。 这里补描述。</p>
+<p>先来了解几个概念：<br>cs: 客户端-服务端<br>RSA： 非对称加密， 通过通过公私钥匙进行相互加解密， 安全系数很高， 但是效率相比对称加密要低， 毕竟涉及的数学公式比较多。<br>加密套件：既然是套件， 那么套件包含那些哪些“件”？或者说 由哪些事情组成的？<br>证书验证: c&#x2F;s之间如何验证证书?  这里首先要了解什么是证书, 里面包含了哪些信息? , 证书的格式是什么,  具体怎么验证的?<br>摘要：对消息进行hash算法处理， 生成一个不可逆的值， 可以理解未每条数据给按上了指纹（唯一）<br>数字签名： 通过私钥加密后的摘要<br>数字证书： 因为存在中间人攻击， 对于客户端， 中间人谎称自己是服务器， 对于服务器， 中间人谎称自己是客户端， 那么中间人完全可以通过自己的私钥加密信息， 然后下发自己的公钥， 欺骗服务器。 当拿到客户端的消息后， 通过自己的私钥解密出消息， 再发送到服务器， 然后服务器下发消息后， </p>
+<p>证书里面一定是包含信息的, 都有哪些信息? 有没有规范? 难道内容可以随便填写? </p>
+<p>不, 证书的内容有规范的, 也就是说, 证书内容规定有哪些必须有一个标准, 这个标准就是X.509, x.509标准里面包含内容如下图(来自wiki截图)</p>
+<p><img src="https://cdn.jsdelivr.net/gh/caldremch/blog-images/x509_format.png" alt="x.509内容"></p>
+<p>x.509的文件格式(扩展名, 后缀)有很多种, 差异存在的原因是因为不同的格式, 使用场景不一样.</p>
+<p>比如: .crt，.key，.req，.csr，.pem，.der</p>
+<p>了解完以后, 我们就知道, 证书校验是校验个啥了, 就是对证书中存在的信息进行正确性校验, 比如验证基本信息(颁发者等)</p>
+<p>那么问题又来了, 客户端是怎么验证的?</p>
+<p>这个就很有意思了, 因为: 我了解这个有何吊用???? , 也可能就是心中那个对模糊概念不解的执念吧, 也可能是因为有些面试官喜欢考这些(说真的, 没必要啊)</p>
+<p>继续概念摸索,  证书校验中涉及到一个证书链, 也叫信任链, 信任链出现的背景大概就是, </p>
+<p>当客户端收到服务端的证书后如何进行验证? 现在很多的手机和浏览器都已经内置了主流的证书, 这些证书都是什么哪来的? </p>
+<p>这就又涉及到一个叫”证书机构”的概念: </p>
+<p>证书机构是干啥:<br>目前主流的CA机构有：<br>GeoTrust、DigiCert、Globalsign等</p>
+<p>拆开理解：</p>
+<p>加密套件主要用于做这4事情：</p>
+<ol>
+<li>身份验证</li>
+<li>数据加密</li>
+<li>消息认证码</li>
+<li>密钥交换算法</li>
+</ol>
+<p>从算法的角度去理解加密套件：<br>件1：密钥交换算法： 在cs之间进行tls握手时，如何去验证对方身份, 适用于少量的数据， 如rsa<br>件2：批量加密算法：加密消息流（注意这里表述的是消息流），用于cs通信中交换的数据(大量的数据)<br>件3：消息认证码算法(MAC:Message Authentication Code)： 消息流会分为很多块（tcp分块传输）， 对每个数据块进行加密散列，用于保证数据的完整性, 如sha<br>件4：伪随机函数： mac算法生成</p>
+<p>https分为单向和双向认证。</p>
+<p>单向认证：c校验s<br>双向认证：c校验s， s校验c</p>
+<p>正常情况下（单向认证），一共要发送4个报文， 也叫4次握手：</p>
+<p>第1个报文（c-s）：client_hello 标识的报文，其中携带的信息有， 当前协议所支持的加密套件， 支持的协议版本， 同时发送这个报文时， 会还生成一个随机数1（用于最后的共享秘钥生成）</p>
+<p>第2个报文（s-c）：服务端根据自身支持的加密套件，选择一个合适的（根据服务器配置决定）加密方式来做密钥交换， 同时会下服务器证书（公钥证书）， 同时会生成一个随机数2（用于最后的共享秘钥生成）</p>
+<p>客户端收到第2个报文后, 客户端这边会去验证服务器下发的证书， </p>
+<ol>
+<li>检查里面的信息， 比如过期时间， 颁发证书的机构（CA机构）是否是可靠的。 </li>
+<li>通过内置的证书证书链，来解开服务器的证书，<br>验证不通过， 则会终止通信。</li>
+</ol>
+<p>第3个报文：（c-s）：上面的client-hello支持发送协议信息， ， 所以客户端此时会发送自己所支持的加密方式， 给服务器进行选择。</p>
+<p> 服务器收到信息后， 会选择客户端支持的最安全的加密算法（对称的）, 并下发给客户端， </p>
+<p>第4个报文： 客户端服务器选择的对称加密算法， 此时客户端首先会生成一个随机码（具体的生成规则不深究， 可以查阅相关资料）， 作为cs通信信息加密的密钥， 同时用服务器的公钥来加密这个随机码， 然后讲加密后的信息发送到服务端</p>
+<p>最终：  服务端使用自己的证书私钥解开加密后的随机码，这样， cs两端都拥有这个随机码后， 就可以通过这个随机码对通信消息进行堆成加密了。</p>
+<h1 id="思考"><a href="#思考" class="headerlink" title="思考"></a>思考</h1><p>从整个tls的握手过程中，怎么理解它保证了网络通信的安全呢？</p>
+<p>如果通信采用对称加密， 那么如何解决钥匙传递的过程（因为不可能一个服务器给私底下给多个客户端相同的钥匙）？</p>
+<p>所以采用的非对称加密， 两把钥匙，其中一把拿来加密， 另外一把都可以拿来解密。</p>
+<p>专业术语叫：公钥和私钥。</p>
+<p>服务器下发公钥给客户端， 客户端如何验证这个公钥就是真是的服务器下发的？ </p>
+<p>公钥的基本信息都校验完以后， 会通过当前内置的证书链</p>
+<p>从场景来说， 它是如何解决著名的中间人攻击？</p>
+<h1 id="TLS的核心"><a href="#TLS的核心" class="headerlink" title="TLS的核心"></a>TLS的核心</h1><ol>
+<li>安全性（密钥交换）</li>
+<li>它要保证消息的完整性（未被篡改过）</li>
+</ol>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ul>
+<li><a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/%E5%AF%86%E7%A0%81%E5%A5%97%E4%BB%B6">密码套件</a></li>
+<li><a target="_blank" rel="noopener" href="https://docs.microsoft.com/zh-cn/windows/win32/secauthn/cipher-suites-in-schannel?redirectedfrom=MSDN">TLS&#x2F;SSL (Schannel SSP) 中的密码套件</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/michaelwoshi/article/details/106162711">【TLS】关于TLS中密码套件说明</a></li>
+<li><a target="_blank" rel="noopener" href="https://help.aliyun.com/document_detail/42214.html">主流数字证书都有哪些格式？</a></li>
+<li><a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/X.509">X.509</a></li>
+<li><a target="_blank" rel="noopener" href="https://zh.wikipedia.org/zh-cn/%E4%BF%A1%E4%BB%BB%E9%8F%88">信任链</a></li>
+<li><a target="_blank" rel="noopener" href="https://segmentfault.com/a/1190000040751040">什么是SSL证书链？</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.anxinssl.com/10709.html">国外知名的CA机构有哪些</a></li>
+<li>[HTTPS连接中最开始是怎么验证CA证书的啊，这又涉及到如何在服务器上面配置HTTPS server？]<br>(<a target="_blank" rel="noopener" href="https://www.zhihu.com/question/35983267/answer/207339407">https://www.zhihu.com/question/35983267/answer/207339407</a>)</li>
+<li><a target="_blank" rel="noopener" href="https://www.1024sou.com/article/28523.html">一文看懂HTTPS、证书机构（CA）、证书、数字签名、私钥、公钥</a><br><a target="_blank" rel="noopener" href="https://juejin.cn/post/6884813913259524104">HTTPS 工作原理详解 | TLS握手过程】</a></li>
+</ul>
+<!-- flag of hidden posts -->
+    </article>
+    <!-- license -->
+    
+        <div class="license-wrapper">
+            <p>Author：<a href="https://caldremch.cn">Caldremch</a>
+            <p>Link：<a href="https://caldremch.cn/2022/04/02/SSL-TLS%E6%8F%A1%E6%89%8B%E8%BF%87%E7%A8%8B%E8%A7%A3%E6%9E%90/">https://caldremch.cn/2022/04/02/SSL-TLS%E6%8F%A1%E6%89%8B%E8%BF%87%E7%A8%8B%E8%A7%A3%E6%9E%90/</a>
+            <p>Publish date：<a href="https://caldremch.cn/2022/04/02/SSL-TLS%E6%8F%A1%E6%89%8B%E8%BF%87%E7%A8%8B%E8%A7%A3%E6%9E%90/">April 2nd 2022, 11:52:27 pm</a>
+            <p>Update date：<a href="https://caldremch.cn/2022/04/02/SSL-TLS%E6%8F%A1%E6%89%8B%E8%BF%87%E7%A8%8B%E8%A7%A3%E6%9E%90/">May 28th 2023, 6:18:00 am</a>
+            <p>License：本文采用<a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">知识共享署名-非商业性使用 4.0 国际许可协议</a>进行许可</p>
+        </div>
+    
+    <!-- paginator -->
+    <ul class="post-paginator">
+        <li class="next">
+            
+        </li>
+        <li class="previous">
+            
+        </li>
+    </ul>
+    <!-- comment -->
+    
+        <div class="post-comment">
+            <!-- 来必力 City 版安装代码 -->
+
+
+            
+
+            
+
+            
+
+            <!-- utteranc评论 -->
+
+
+            <!-- partial('_partial/comment/changyan') -->
+            <!--PC版-->
+
+
+            
+            
+
+            
+
+        </div>
+    
+    <!-- timeliness note -->
+    <!-- idea from: https://hexo.fluid-dev.com/posts/hexo-injector/#%E6%96%87%E7%AB%A0%E6%97%B6%E6%95%88%E6%80%A7%E6%8F%90%E7%A4%BA -->
+    
+    <!-- Mathjax -->
+    
+</main>
+
+                <!-- profile -->
+                
+            </div>
+            <footer class="footer footer-unloaded">
+    <!-- social  -->
+    
+        <div class="social">
+            
+    
+        
+            
+                <a href="mailto:finishmoend@gmail.com" class="iconfont-archer email" title=email ></a>
+            
+        
+    
+        
+            
+                <a href="https://github.com/caldremch" class="iconfont-archer github" target="_blank" title=github></a>
+            
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+
+        </div>
+    
+    <!-- powered by Hexo  -->
+    <div class="copyright">
+        <span id="hexo-power">Powered by <a href="https://hexo.io/" target="_blank">Hexo</a></span><span class="iconfont-archer power">&#xe635;</span><span id="theme-info">theme <a href="https://github.com/fi3ework/hexo-theme-archer" target="_blank">Archer</a></span>
+    </div>
+    <!-- website approve for Chinese user -->
+    
+    <!-- 不蒜子  -->
+    
+        <div class="busuanzi-container">
+            
+             
+                <span id="busuanzi_container_site_pv">PV: <span id="busuanzi_value_site_pv"></span> :)</span>
+            
+        </div>
+    	
+</footer>
+
+        </div>
+        <!-- toc -->
+        
+            <div class="toc-wrapper toc-wrapper-loding" style=
+
+
+
+
+
+
+
+    top:50vh;
+
+>
+                <div class="toc-catalog">
+                    <span class="iconfont-archer catalog-icon">&#xe613;</span><span>CATALOG</span>
+                </div>
+                <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%89%8D%E8%A8%80"><span class="toc-number">1.</span> <span class="toc-text">前言</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-number">2.</span> <span class="toc-text">背景</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%BA%86%E8%A7%A3%E8%BF%99%E4%B8%AA%E5%AF%B9%E6%88%91%E6%9C%89%E4%BB%80%E4%B9%88%E6%84%8F%E4%B9%89"><span class="toc-number">3.</span> <span class="toc-text">了解这个对我有什么意义?</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%BA%90%E7%A0%81%E7%89%88%E6%9C%AC"><span class="toc-number">4.</span> <span class="toc-text">源码版本</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%B5%81%E7%A8%8B"><span class="toc-number">5.</span> <span class="toc-text">流程</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%80%9D%E8%80%83"><span class="toc-number">6.</span> <span class="toc-text">思考</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#TLS%E7%9A%84%E6%A0%B8%E5%BF%83"><span class="toc-number">7.</span> <span class="toc-text">TLS的核心</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%8F%82%E8%80%83"><span class="toc-number">8.</span> <span class="toc-text">参考</span></a></li></ol>
+            </div>
+        
+        <!-- sidebar -->
+        <div class="sidebar sidebar-hide">
+    <ul class="sidebar-tabs sidebar-tabs-active-0">
+        <li class="sidebar-tab-archives"><span class="iconfont-archer">&#xe67d;</span><span class="tab-name">Archive</span></li>
+        <li class="sidebar-tab-tags"><span class="iconfont-archer">&#xe61b;</span><span class="tab-name">Tag</span></li>
+        <li class="sidebar-tab-categories"><span class="iconfont-archer">&#xe666;</span><span class="tab-name">Cate</span></li>
+    </ul>
+    <div class="sidebar-content sidebar-content-show-archive">
+        <div class="sidebar-panel-archives">
+    <!-- 在 ejs 中将 archive 按照时间排序 -->
+    
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    
+    
+    
+    
+    <div class="total-and-search">
+        <div class="total-archive">
+        Total : 12
+        </div>
+        <!-- search  -->
+        
+    </div>
+    
+    <div class="post-archive">
+    
+        
+            
+            
+            <div class="archive-year"> 2023 </div>
+            <ul class="year-list">
+            
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/22</span>
+            <a class="archive-post-title" href="/2023/05/22/Flutter%E7%BC%96%E8%AF%91aar%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/">Flutter编译aar问题记录</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/11</span>
+            <a class="archive-post-title" href="/2023/05/11/Android-AGP%E4%B8%8Elint%E7%9A%84%E7%89%88%E6%9C%AC%E5%85%BC%E5%AE%B9%E9%97%AE%E9%A2%98/">Android AGP与lint的版本兼容问题</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/19</span>
+            <a class="archive-post-title" href="/2023/03/19/ubuntu22-04-docker%E5%AE%89%E8%A3%85/">ubuntu22.04-docker安装</a>
+        </li>
+    
+        
+            
+            
+                
+                </ul>
+            
+            <div class="archive-year"> 2022 </div>
+            <ul class="year-list">
+            
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/17</span>
+            <a class="archive-post-title" href="/2022/05/17/%E8%AF%81%E4%B9%A6-%E7%AD%BE%E5%90%8D-%E8%AF%81%E4%B9%A6%E9%93%BE%E5%82%BB%E5%82%BB%E5%88%86%E4%B8%8D%E6%B8%85%E6%A5%9A/">证书,数字证书, 数字签名,证书链傻傻分不清楚</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">04/09</span>
+            <a class="archive-post-title" href="/2022/04/09/%E8%BF%99%E4%BA%9B%E9%97%AE%E9%A2%98%E7%9A%84%E8%83%8C%E5%90%8E-%E4%BD%93%E7%8E%B0%E4%BD%A0%E6%98%AF%E5%90%A6%E5%96%84%E4%BA%8E%E6%80%9D%E8%80%83%E5%92%8C%E5%8F%8D%E6%80%9D/">这些问题的背后-体现你是否善于思考和反思</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/29</span>
+            <a class="archive-post-title" href="/2022/03/29/%E5%85%B3%E4%BA%8E%E7%9F%A5%E8%AF%86%E5%AD%A6%E4%B9%A0%E5%92%8C%E6%89%A9%E5%B1%95%E6%80%9D%E8%80%83/">关于知识学习和扩展思考</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/29</span>
+            <a class="archive-post-title" href="/2022/03/29/%E8%BA%AC%E8%A1%8C/">躬行</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/27</span>
+            <a class="archive-post-title" href="/2022/03/27/%E5%85%B3%E4%BA%8E%E5%9C%A8%E9%94%99%E8%AF%AF%E7%9A%84%E6%96%B9%E5%90%91%E4%BD%BF%E5%8A%B2%E7%94%A8%E5%8A%9F%E7%9A%84%E5%BF%83%E5%BE%97/">关于在错误的方向使劲用功的心得</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/19</span>
+            <a class="archive-post-title" href="/2022/03/19/%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E6%A0%B8%E5%BF%83%E6%8C%87%E5%AF%BC/">源码阅读核心指导</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/15</span>
+            <a class="archive-post-title" href="/2022/03/15/%E5%AD%A6%E4%BC%9A%E6%8F%90%E9%97%AE-%E5%9B%9E%E7%AD%94/">学会提问&回答</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/09</span>
+            <a class="archive-post-title" href="/2022/03/09/%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%9A%84%E7%94%B1%E6%9D%A5/">线程池的由来</a>
+        </li>
+    
+        
+            
+            
+                
+                </ul>
+            
+            <div class="archive-year"> 2021 </div>
+            <ul class="year-list">
+            
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">04/15</span>
+            <a class="archive-post-title" href="/2021/04/15/%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA%E8%AE%B0%E5%BD%95/">Hexo博客搭建记录</a>
+        </li>
+    
+    </div>
+</div>
+
+        <div class="sidebar-panel-tags">
+    <div class="sidebar-tags-name">
+        
+            <span class="sidebar-tag-name" data-tags="问题记录">
+                <span class="iconfont-archer">&#xe606;</span>
+                问题记录
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="持续更新">
+                <span class="iconfont-archer">&#xe606;</span>
+                持续更新
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="个人心得">
+                <span class="iconfont-archer">&#xe606;</span>
+                个人心得
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="博客搭建">
+                <span class="iconfont-archer">&#xe606;</span>
+                博客搭建
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="表达能力">
+                <span class="iconfont-archer">&#xe606;</span>
+                表达能力
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="生活">
+                <span class="iconfont-archer">&#xe606;</span>
+                生活
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="工作">
+                <span class="iconfont-archer">&#xe606;</span>
+                工作
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="学习心得">
+                <span class="iconfont-archer">&#xe606;</span>
+                学习心得
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="线程池">
+                <span class="iconfont-archer">&#xe606;</span>
+                线程池
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="SSL/TLS">
+                <span class="iconfont-archer">&#xe606;</span>
+                SSL/TLS
+            </span>
+        
+    </div>
+    <div class="iconfont-archer sidebar-tags-empty">&#xe678;</div>
+    <div class="tag-load-fail" style="display: none; color: #ccc; font-size: 0.6rem;">
+        缺失模块，请参考主题文档进行安装配置：https://github.com/fi3ework/hexo-theme-archer#%E5%AE%89%E8%A3%85%E4%B8%BB%E9%A2%98
+    </div> 
+    <div class="sidebar-tags-list"></div>
+</div>
+
+        <div class="sidebar-panel-categories">
+    <div class="sidebar-categories-name">
+    
+        <span class="sidebar-category-name" data-categories="源码解析">
+            <span class="iconfont-archer">&#xe60a;</span>
+            源码解析
+        </span>
+    
+        <span class="sidebar-category-name" data-categories="网络之道">
+            <span class="iconfont-archer">&#xe60a;</span>
+            网络之道
+        </span>
+    
+        <span class="sidebar-category-name" data-categories="个人心得">
+            <span class="iconfont-archer">&#xe60a;</span>
+            个人心得
+        </span>
+    
+    </div>
+    <div class="iconfont-archer sidebar-categories-empty">&#xe678;</div>
+    <div class="sidebar-categories-list"></div>
+</div>
+
+    </div>
+</div>
+
+        <!-- site-meta -->
+        <script>
+    var siteMetaRoot = "/"
+    if (siteMetaRoot === "undefined") {
+        siteMetaRoot = '/'
+    }
+    var siteMeta = {
+        url: "https://caldremch.cn",
+        root: siteMetaRoot,
+        author: "Caldremch"
+    }
+</script>
+
+        <!-- import experimental options here -->
+        <!-- Custom Font -->
+
+
+        <!-- main func -->
+        <script src="/scripts/main.js?v=20211217"></script>
+        <!-- dark mode -->
+        <script src="/scripts/dark.js?v=20211217"></script>
+        <!-- fancybox -->
+        <script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js" defer></script>
+        <!-- algolia -->
+        
+        <!-- busuanzi -->
+        
+            <script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" async></script>
+        
+        <!-- CNZZ -->
+        
+        <!-- async load share.js -->
+        
+            <script src="/scripts/share.js?v=20211217" async></script>
+        
+        <!-- mermaid -->
+        
+    </body>
+</html>

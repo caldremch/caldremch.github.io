@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+    <!-- title -->
+
+
+    
+
+<!-- keywords -->
+
+
+
+<head>
+    <meta charset="utf-8">
+    <meta name="google-site-verification" content="-WaeGNHcBy5E_3u_v_RcP5rb38aeKaixui5U_qnHrwc" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="author" content="Caldremch">
+    <meta name="renderer" content="webkit">
+    <meta name="copyright" content="Caldremch">
+    
+        <meta name="keywords" content="hexo,hexo-theme,hexo-blog">
+    
+    <meta name="description" content="">
+    <meta name="description" content="前言 什么是线程池?  为什么会出现线程池?  本文是基于JVM线程相关知识展开叙述. 线程池是什么?线程池并不一定是由多个线程组合在一起使用, 所谓”池”可以理解为能重复使用的”事物”, 所以当”池”中只有1个时也算是”池”, 池的重点是 “重复利用” 而不是多, 并且”池”带有一定的”管理角色”, 也就是是 “管理或者控制”所以线程池的含义是一种可重复利用线程的一种使用方式, 它的本质就是可以">
+<meta property="og:type" content="article">
+<meta property="og:title" content="线程池的由来">
+<meta property="og:url" content="https://caldremch.cn/2022/03/09/%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%9A%84%E7%94%B1%E6%9D%A5/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="前言 什么是线程池?  为什么会出现线程池?  本文是基于JVM线程相关知识展开叙述. 线程池是什么?线程池并不一定是由多个线程组合在一起使用, 所谓”池”可以理解为能重复使用的”事物”, 所以当”池”中只有1个时也算是”池”, 池的重点是 “重复利用” 而不是多, 并且”池”带有一定的”管理角色”, 也就是是 “管理或者控制”所以线程池的含义是一种可重复利用线程的一种使用方式, 它的本质就是可以">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2022-03-09T12:10:29.000Z">
+<meta property="article:modified_time" content="2023-05-28T06:18:00.652Z">
+<meta property="article:author" content="Caldremch">
+<meta property="article:tag" content="线程池">
+<meta name="twitter:card" content="summary">
+    <meta http-equiv="Cache-control" content="no-cache">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <link rel="icon" href="/assets/favicon.ico">
+    
+    <title>线程池的由来 · Caldremch</title>
+    <!-- /*! loadCSS. [c]2017 Filament Group, Inc. MIT License */
+/* This file is meant as a standalone workflow for
+- testing support for link[rel=preload]
+- enabling async CSS loading in browsers that do not support rel=preload
+- applying rel preload css once loaded, whether supported or not.
+*/ -->
+<script>
+    (function (w) {
+        'use strict'
+        // rel=preload support test
+        if (!w.loadCSS) {
+            w.loadCSS = function () {}
+        }
+        // define on the loadCSS obj
+        var rp = (loadCSS.relpreload = {})
+        // rel=preload feature support test
+        // runs once and returns a function for compat purposes
+        rp.support = (function () {
+            var ret
+            try {
+                ret = w.document.createElement('link').relList.supports('preload')
+            } catch (e) {
+                ret = false
+            }
+            return function () {
+                return ret
+            }
+        })()
+
+        // if preload isn't supported, get an asynchronous load by using a non-matching media attribute
+        // then change that media back to its intended value on load
+        rp.bindMediaToggle = function (link) {
+            // remember existing media attr for ultimate state, or default to 'all'
+            var finalMedia = link.media || 'all'
+
+            function enableStylesheet() {
+                link.media = finalMedia
+            }
+
+            // bind load handlers to enable media
+            if (link.addEventListener) {
+                link.addEventListener('load', enableStylesheet)
+            } else if (link.attachEvent) {
+                link.attachEvent('onload', enableStylesheet)
+            }
+
+            // Set rel and non-applicable media type to start an async request
+            // note: timeout allows this to happen async to let rendering continue in IE
+            setTimeout(function () {
+                link.rel = 'stylesheet'
+                link.media = 'only x'
+            })
+            // also enable media after 3 seconds,
+            // which will catch very old browsers (android 2.x, old firefox) that don't support onload on link
+            setTimeout(enableStylesheet, 3000)
+        }
+
+        // loop through link elements in DOM
+        rp.poly = function () {
+            // double check this to prevent external calls from running
+            if (rp.support()) {
+                return
+            }
+            var links = w.document.getElementsByTagName('link')
+            for (var i = 0; i < links.length; i++) {
+                var link = links[i]
+                // qualify links to those with rel=preload and as=style attrs
+                if (
+                    link.rel === 'preload' &&
+                    link.getAttribute('as') === 'style' &&
+                    !link.getAttribute('data-loadcss')
+                ) {
+                    // prevent rerunning on link
+                    link.setAttribute('data-loadcss', true)
+                    // bind listeners to toggle media back
+                    rp.bindMediaToggle(link)
+                }
+            }
+        }
+
+        // if unsupported, run the polyfill
+        if (!rp.support()) {
+            // run once at least
+            rp.poly()
+
+            // rerun poly on an interval until onload
+            var run = w.setInterval(rp.poly, 500)
+            if (w.addEventListener) {
+                w.addEventListener('load', function () {
+                    rp.poly()
+                    w.clearInterval(run)
+                })
+            } else if (w.attachEvent) {
+                w.attachEvent('onload', function () {
+                    rp.poly()
+                    w.clearInterval(run)
+                })
+            }
+        }
+
+        // commonjs
+        if (typeof exports !== 'undefined') {
+            exports.loadCSS = loadCSS
+        } else {
+            w.loadCSS = loadCSS
+        }
+    })(typeof global !== 'undefined' ? global : this)
+</script>
+
+    <style type="text/css">
+    @font-face {
+        font-family: 'Oswald-Regular';
+        src: url("/font/Oswald-Regular.ttf");
+    }
+
+    body {
+        margin: 0;
+    }
+
+    header,
+    footer,
+    .back-top,
+    .sidebar,
+    .container,
+    .site-intro-meta,
+    .toc-wrapper {
+        display: none;
+    }
+
+    .site-intro {
+        position: relative;
+        z-index: 3;
+        width: 100%;
+        /* height: 50vh; */
+        overflow: hidden;
+    }
+
+    .site-intro-placeholder {
+        position: absolute;
+        z-index: -2;
+        top: 0;
+        left: 0;
+        width: calc(100% + 300px);
+        height: 100%;
+        background: repeating-linear-gradient(-45deg, #444 0, #444 80px, #333 80px, #333 160px);
+        background-position: center center;
+        transform: translate3d(-226px, 0, 0);
+        animation: gradient-move 2.5s ease-out 0s infinite;
+    }
+
+    @keyframes gradient-move {
+        0% {
+            transform: translate3d(-226px, 0, 0);
+        }
+        100% {
+            transform: translate3d(0, 0, 0);
+        }
+    }
+</style>
+
+    <link rel="preload" href="/css/style.css?v=20211217" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="/css/dark.css?v=20211217" as="style">
+    <link rel="stylesheet" href="/css/dark.css">
+    <link rel="stylesheet" href="/css/mobile.css?v=20211217" media="(max-width: 960px)">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" as="script">
+    <link rel="preload" href="/scripts/main.js?v=20211217" as="script">
+    <link rel="preload" href="/scripts/dark.js?v=20211217" as="script">
+    <link rel="preload" href="/font/Oswald-Regular.ttf" as="font" crossorigin>
+    <link rel="preload" href="https://at.alicdn.com/t/font_327081_1dta1rlogw17zaor.woff" as="font" crossorigin>
+    <!-- algolia -->
+    
+    <!-- 百度统计  -->
+    
+    <!-- 谷歌统计  -->
+    
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script type="text/javascript">
+        if (typeof window.$ == undefined) {
+            console.warn('jquery load from jsdelivr failed, will load local script')
+            document.write('<script src="/lib/jquery.min.js" />')
+        }
+    </script>
+    
+        <body class="post-body">
+    
+        <!-- header -->
+        <header class="header header-mobile">
+    <!-- top read progress line -->
+    <div class="header-element">
+        <div class="read-progress"></div>
+    </div>
+    <!-- sidebar menu button -->
+    <div class="header-element">
+        
+            <div class="header-sidebar-menu">
+        
+            
+                <div style="padding-left: 1px;">&#xe775;</div>
+            
+        </div>
+    </div>
+    <!-- header actions -->
+    <div class="header-actions">
+        <!-- theme mode switch button -->
+        <span class="header-theme-btn header-element">
+            <i class="fas fa-adjust"></i>
+        </span>
+        <!-- back to home page text -->
+        <span class="home-link header-element">
+            <a href=/>Caldremch</a>
+        </span>
+    </div>
+    <!-- toggle banner for post layout -->
+    
+        
+            <div class="banner">
+        
+            <div class="blog-title header-element">
+                <a href="/">Caldremch</a>
+            </div>
+            <div class="post-title header-element">
+                <a href="#" class="post-name">线程池的由来</a>
+            </div>
+        </div>
+    
+</header>
+
+        <!-- fixed footer -->
+        <footer class="footer-fixed">
+    <!-- back to top button -->
+    <div class="footer-fixed-element">
+        
+            <div class="back-top back-top-hidden">
+        
+        
+            <div>&#xe639;</div>
+        
+        </div>
+    </div>
+</footer>
+
+        <!-- wrapper -->
+        <div class="wrapper">
+            <div class="site-intro" style="
+
+
+
+
+
+
+
+    height:50vh;
+
+">
+    
+    <!-- 主页  -->
+    
+        
+    <!-- 404页  -->
+            
+    <div class="site-intro-placeholder"></div>
+    <div class="site-intro-img" style="background-image: url(https://cdn.jsdelivr.net/gh/caldremch/blog-images/post-bg.jpg)"></div>
+    <div class="site-intro-meta">
+        <!-- 标题  -->
+        <h1 class="intro-title">
+            <!-- 主页  -->
+            
+                线程池的由来
+            <!-- 404 -->
+            
+        </h1>
+        <!-- 副标题 -->
+        <p class="intro-subtitle">
+            <!-- 主页副标题  -->
+            
+                
+            <!-- 404 -->
+            
+        </p>
+        <!-- 文章页 meta -->
+        
+            <div class="post-intros">
+                <!-- 文章页标签  -->
+                
+                    <div class= post-intro-tags >
+    
+    
+        <a class="post-tag" href="javascript:void(0);" data-tags="线程池">线程池</a>
+    
+</div>
+
+                
+                
+                    <div class="post-intro-read">
+                        <span>Word count: <span class="post-count word-count">2.1k</span>Reading time: <span class="post-count reading-time">8 min</span></span>
+                    </div>
+                
+                <div class="post-intro-meta">
+                    <!-- 撰写日期 -->
+                    <span class="iconfont-archer post-intro-calander">&#xe676;</span>
+                    <span class="post-intro-time">2022/03/09</span>
+                    <!-- busuanzi -->
+                    
+                        <span id="busuanzi_container_page_pv" class="busuanzi-pv">
+                            <span class="iconfont-archer post-intro-busuanzi">&#xe602;</span>
+                            <span id="busuanzi_value_page_pv"></span>
+                        </span>
+                    
+                    <!-- 文章分享 -->
+                    <span class="share-wrapper">
+                        <span class="iconfont-archer share-icon">&#xe71d;</span>
+                        <span class="share-text">Share</span>
+                        <ul class="share-list">
+                            <li class="iconfont-archer share-qr" data-type="qr">&#xe75b;
+                                <div class="share-qrcode"></div>
+                            </li>
+                            <li class="iconfont-archer" data-type="weibo">&#xe619;</li>
+                            <li class="iconfont-archer" data-type="qzone">&#xe62e;</li>
+                            <li class="iconfont-archer" data-type="twitter">&#xe634;</li>
+                            <li class="iconfont-archer" data-type="facebook">&#xe67a;</li>
+                        </ul>
+                    </span>
+                </div>
+            </div>
+        
+    </div>
+</div>
+
+            <script>
+  // get user agent
+  function getBrowserVersions() {
+    var u = window.navigator.userAgent
+    return {
+      userAgent: u,
+      trident: u.indexOf('Trident') > -1, //IE内核
+      presto: u.indexOf('Presto') > -1, //opera内核
+      webKit: u.indexOf('AppleWebKit') > -1, //苹果、谷歌内核
+      gecko: u.indexOf('Gecko') > -1 && u.indexOf('KHTML') == -1, //火狐内核
+      mobile: !!u.match(/AppleWebKit.*Mobile.*/), //是否为移动终端
+      ios: !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/), //ios终端
+      android: u.indexOf('Android') > -1 || u.indexOf('Linux') > -1, //android终端或者uc浏览器
+      iPhone: u.indexOf('iPhone') > -1 || u.indexOf('Mac') > -1, //是否为iPhone或者安卓QQ浏览器
+      iPad: u.indexOf('iPad') > -1, //是否为iPad
+      webApp: u.indexOf('Safari') == -1, //是否为web应用程序，没有头部与底部
+      weixin: u.indexOf('MicroMessenger') == -1, //是否为微信浏览器
+      uc: u.indexOf('UCBrowser') > -1, //是否为android下的UC浏览器
+    }
+  }
+  var browser = {
+    versions: getBrowserVersions(),
+  }
+  console.log('userAgent: ' + browser.versions.userAgent)
+
+  // callback
+  function fontLoaded() {
+    console.log('font loaded')
+    if (document.getElementsByClassName('site-intro-meta')) {
+      document
+        .getElementsByClassName('intro-title')[0]
+        .classList.add('intro-fade-in')
+      document
+        .getElementsByClassName('intro-subtitle')[0]
+        .classList.add('intro-fade-in')
+      var postIntros = document.getElementsByClassName('post-intros')[0]
+      if (postIntros) {
+        postIntros.classList.add('post-fade-in')
+      }
+    }
+  }
+
+  // UC不支持跨域，所以直接显示
+  function asyncCb() {
+    if (browser.versions.uc) {
+      console.log('UCBrowser')
+      fontLoaded()
+    } else {
+      WebFont.load({
+        custom: {
+          families: ['Oswald-Regular'],
+        },
+        loading: function () {
+          // 所有字体开始加载
+          // console.log('font loading');
+        },
+        active: function () {
+          // 所有字体已渲染
+          fontLoaded()
+        },
+        inactive: function () {
+          // 字体预加载失败，无效字体或浏览器不支持加载
+          console.log('inactive: timeout')
+          fontLoaded()
+        },
+        timeout: 5000, // Set the timeout to two seconds
+      })
+    }
+  }
+
+  function asyncErr() {
+    console.warn('script load from CDN failed, will load local script')
+  }
+
+  // load webfont-loader async, and add callback function
+  function async(u, cb, err) {
+    var d = document,
+      t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0]
+    o.src = u
+    if (cb) {
+      o.addEventListener(
+        'load',
+        function (e) {
+          cb(null, e)
+        },
+        false
+      )
+    }
+    if (err) {
+      o.addEventListener(
+        'error',
+        function (e) {
+          err(null, e)
+        },
+        false
+      )
+    }
+    s.parentNode.insertBefore(o, s)
+  }
+
+  var asyncLoadWithFallBack = function (arr, success, reject) {
+    var currReject = function () {
+      reject()
+      arr.shift()
+      if (arr.length) async(arr[0], success, currReject)
+    }
+
+    async(arr[0], success, currReject)
+  }
+
+  asyncLoadWithFallBack(
+    [
+      'https://cdn.jsdelivr.net/npm/webfontloader@1.6.28/webfontloader.min.js',
+      'https://cdn.bootcss.com/webfont/1.6.28/webfontloader.js',
+      "/lib/webfontloader.min.js",
+    ],
+    asyncCb,
+    asyncErr
+  )
+</script>
+
+            <img class="loading" src="/assets/loading.svg" style="display: block; margin: 6rem auto 0 auto; width: 6rem; height: 6rem;" />
+            <div class="container container-unloaded">
+                <main class="main post-page">
+    <article class="article-entry">
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><ol>
+<li>什么是线程池? </li>
+<li>为什么会出现线程池?</li>
+</ol>
+<p>本文是基于JVM线程相关知识展开叙述.</p>
+<h1 id="线程池是什么"><a href="#线程池是什么" class="headerlink" title="线程池是什么?"></a>线程池是什么?</h1><p>线程池并不一定是由多个线程组合在一起使用, 所谓”池”可以理解为能重复使用的”事物”, 所以当”池”中只有1个时也算是”池”, 池的<strong>重点</strong>是 <strong>“重复利用”</strong> 而不是多, 并且”池”带有一定的”管理角色”, 也就是是 <strong>“管理或者控制”</strong><br>所以线程池的含义是一种可重复利用线程的一种使用方式, 它的本质就是可以不用重复的创建线程而是直接可以从”池”中取出一个已经创建的线程来使用.<br>而现在的线程池封装做了各种创建管理, 调度等功能, 这是线程池的机制, 通过机制的设计可以让开发者能直接利用线程池支持的机制来满足常见的业务需求和提高软件性能</p>
+<h1 id="为什么会出现线程池"><a href="#为什么会出现线程池" class="headerlink" title="为什么会出现线程池?"></a>为什么会出现线程池?</h1><p>基于上一个问题, 来回答这个问题, 知道线程池的<strong>重点</strong>后, 可以得知, <strong>重复利用</strong>就是为了解决<strong>频繁创建线程</strong>的问题,  那么出现线程池的原因一定是因为线程的创建&#x2F;或者销毁成本高,<br>, <strong>“管理控制”</strong> 是为了 <strong>“进行限制”</strong>, 那么如果不对线程的创建进行管控或者创建限制, 会产生什么影响?</p>
+<p> 或者线程创建的开销比较大, 那么线程的创建开销大在哪里? 或者说创建线程或拖慢执行任务的速度吗? </p>
+<p>来看看线程的创建都做了什么? </p>
+<p><strong>Thread.java</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="title function_">Thread</span><span class="params">()</span> &#123;</span><br><span class="line">    init(<span class="literal">null</span>, <span class="literal">null</span>, <span class="string">&quot;Thread-&quot;</span> + nextThreadNum(), <span class="number">0</span>);</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">public</span> <span class="title function_">Thread</span><span class="params">(Runnable target)</span> &#123;</span><br><span class="line">    init(<span class="literal">null</span>, target, <span class="string">&quot;Thread-&quot;</span> + nextThreadNum(), <span class="number">0</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">init</span><span class="params">(ThreadGroup g, Runnable target, String name,</span></span><br><span class="line"><span class="params">                  <span class="type">long</span> stackSize)</span> &#123;</span><br><span class="line">    init(g, target, name, stackSize, <span class="literal">null</span>, <span class="literal">true</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">init</span><span class="params">(ThreadGroup g, Runnable target, String name,</span></span><br><span class="line"><span class="params">                  <span class="type">long</span> stackSize, AccessControlContext acc,</span></span><br><span class="line"><span class="params">                  <span class="type">boolean</span> inheritThreadLocals)</span> &#123;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="comment">//线程必须有名字, 一般默认是&quot;Thread-xxx&quot;, 所一般为了能进行问题追溯, 我们都会通过Thread.setName(xxx)给线程指定一个名字</span></span><br><span class="line">    <span class="keyword">if</span> (name == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">NullPointerException</span>(<span class="string">&quot;name cannot be null&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">this</span>.name = name;</span><br><span class="line"></span><br><span class="line">    ....(此处省略多行代码)</span><br><span class="line"></span><br><span class="line">    <span class="built_in">this</span>.group = g;</span><br><span class="line">    <span class="built_in">this</span>.daemon = parent.isDaemon();</span><br><span class="line">    <span class="built_in">this</span>.priority = parent.getPriority();</span><br><span class="line">    <span class="keyword">if</span> (security == <span class="literal">null</span> || isCCLOverridden(parent.getClass()))</span><br><span class="line">        <span class="built_in">this</span>.contextClassLoader = parent.getContextClassLoader();</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">        <span class="built_in">this</span>.contextClassLoader = parent.contextClassLoader;</span><br><span class="line">    ....</span><br><span class="line">    <span class="built_in">this</span>.target = target;</span><br><span class="line">    setPriority(priority);</span><br><span class="line">    ....</span><br><span class="line">    <span class="built_in">this</span>.stackSize = stackSize;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Set thread ID */</span></span><br><span class="line">    tid = nextThreadID();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里Thread的构造函数并没有做什么, 只是对线程的runable(动作), 线程组, 优先级, 线程类型(守护线程与否), stackSize进行了初始化, </p>
+<p>在继续看看start方法</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">这里简单说一下线程组: 方便管理线程, 大概就是这样了解一下</span><br></pre></td></tr></table></figure>
+
+
+<p>线程start过程</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title function_">start</span><span class="params">()</span> &#123;</span><br><span class="line">       ...</span><br><span class="line">       <span class="type">boolean</span> <span class="variable">started</span> <span class="operator">=</span> <span class="literal">false</span>;</span><br><span class="line">       <span class="keyword">try</span> &#123;</span><br><span class="line">           <span class="comment">//调用了native方法</span></span><br><span class="line">           start0();</span><br><span class="line">           started = <span class="literal">true</span>;</span><br><span class="line">       &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">           ...</span><br><span class="line">       &#125;</span><br><span class="line">   &#125;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">native</span> <span class="keyword">void</span> <span class="title function_">start0</span><span class="params">()</span>;</span><br></pre></td></tr></table></figure>
+
+<p>start0方法入口(说实话也是第一次看openJDK和HotSpot,不知道怎么找, 还是通过网友的分享找到的)</p>
+<p>已验证路径正确:</p>
+<p><strong>jdk源码:</strong></p>
+<ul>
+<li>src&#x2F;java.base&#x2F;share&#x2F;native&#x2F;libjava&#x2F;Thread.c</li>
+</ul>
+<p><strong>hotspot源码:</strong></p>
+<ul>
+<li>src&#x2F;share&#x2F;vm&#x2F;prims&#x2F;jvm.h</li>
+<li>src&#x2F;share&#x2F;vm&#x2F;prims&#x2F;jvm.cpp</li>
+</ul>
+<p><strong>jvm.cpp</strong></p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">native_thread = <span class="keyword">new</span> <span class="built_in">JavaThread</span>(&amp;thread_entry, sz);<span class="comment">//创建线程</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>src&#x2F;share&#x2F;vm&#x2F;runtine&#x2F;thread.cpp</strong></p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">os::<span class="built_in">create_thread</span>(<span class="keyword">this</span>, thr_type, stack_sz); <span class="comment">//创建线程</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>src&#x2F;os&#x2F;linux&#x2F;vm&#x2F;os_linux.cpp</strong></p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">pthread_t</span> tid;</span><br><span class="line"><span class="type">int</span> ret = <span class="built_in">pthread_create</span>(&amp;tid, &amp;attr, (<span class="type">void</span>* (*)(<span class="type">void</span>*)) java_start, thread);<span class="comment">//创建并执行线程</span></span><br><span class="line"><span class="built_in">pthread_attr_destroy</span>(&amp;attr); <span class="comment">//销毁线程</span></span><br></pre></td></tr></table></figure>
+
+<p>继续往下, 具体的api调用细节不细究了, 可以自行看源码跟踪, 最终到了线程真正开始运行的步骤</p>
+<p><strong>src&#x2F;share&#x2F;vm&#x2F;runtine&#x2F;thread.cpp</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// The first routine called by a new Java thread</span></span><br><span class="line"><span class="keyword">void</span> JavaThread::run() &#123;</span><br><span class="line">        <span class="comment">// initialize thread-local alloc buffer related fields</span></span><br><span class="line">        <span class="built_in">this</span>-&gt;initialize_tlab(); <span class="comment">//妈的, 真的有tlab, 刚刚看了JMM内存模型, 正好可以在这里理解上, 可以看参考里面的Java对象的内配相关文章</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// used to test validitity of stack trace backs</span></span><br><span class="line">        <span class="built_in">this</span>-&gt;record_base_of_stack_pointer();<span class="comment">//记录栈基地址</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// Record real stack base and size.</span></span><br><span class="line">        <span class="built_in">this</span>-&gt;record_stack_base_and_size();<span class="comment">//初始化栈帧</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// Initialize thread local storage; set before calling MutexLocker</span></span><br><span class="line">        <span class="built_in">this</span>-&gt;initialize_thread_local_storage();</span><br><span class="line"></span><br><span class="line">        <span class="built_in">this</span>-&gt;create_stack_guard_pages();</span><br><span class="line"></span><br><span class="line">        <span class="built_in">this</span>-&gt;cache_global_variables();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Thread is now sufficient initialized to be handled by the safepoint code as being</span></span><br><span class="line">        <span class="comment">// in the VM. Change thread state from _thread_new to _thread_in_vm</span></span><br><span class="line">        ThreadStateTransition::transition_and_fence(<span class="built_in">this</span>, _thread_new, _thread_in_vm);</span><br><span class="line">        ...</span><br><span class="line"></span><br><span class="line">        DTRACE_THREAD_PROBE(start, <span class="built_in">this</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// This operation might block. We call that after all safepoint checks for a new thread has</span></span><br><span class="line">        <span class="comment">// been completed.</span></span><br><span class="line">        <span class="built_in">this</span>-&gt;set_active_handles(JNIHandleBlock::allocate_block());<span class="comment">//设置JNI回调</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (JvmtiExport::should_post_thread_life()) &#123;</span><br><span class="line">        JvmtiExport::post_thread_start(<span class="built_in">this</span>); <span class="comment">//真正开始</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        EventThreadStart event;</span><br><span class="line">        <span class="keyword">if</span> (event.should_commit()) &#123;</span><br><span class="line">        event.set_javalangthread(java_lang_Thread::thread_id(<span class="built_in">this</span>-&gt;threadObj()));</span><br><span class="line">        event.commit();</span><br><span class="line">        &#125;</span><br><span class="line">        ...</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>从上面的代码分析来看, 是线程在真正开始run之前, 做了很多的处理, 比如线程内部的地址, 栈帧等处理.</p>
+<h1 id="线程的销毁"><a href="#线程的销毁" class="headerlink" title="线程的销毁"></a>线程的销毁</h1><p>由上述Java线程创建过程中, 线程一般执行完任务后会调用pthread_attr_destroy, 从方法说明上来理解, 就是将线程属性对象销毁(线程属性对象, 是指线程本身实例对象?),<br>并运行系统回收线程相关资源, 比如线程创建是的栈空间等</p>
+<h1 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h1><h2 id="线程是可以无限创建的吗"><a href="#线程是可以无限创建的吗" class="headerlink" title="线程是可以无限创建的吗?"></a>线程是可以无限创建的吗?</h2><p>通过查看手机 &#x2F;proc&#x2F;sys&#x2F;kernel&#x2F;threads-max 文件可以得知<br>红米k30(已root): threads-max的值为54116<br>进程创建最多54115个线程, 在手机系统中, 这个值不一定.</p>
+<p>而且, 这个是指配置规定的最大的线程数量(实际上不一定能创建到这么多, 因为有可受到&#x2F;proc&#x2F;sys&#x2F;vm&#x2F;max_map_count的印象, 但是如果是因为max_map_count达到上线后创建失败,不属于本文的范畴)</p>
+<p>从内存的角度看: 线程池的设计一般都会做线程创建的限制, 比如指定最多能创建多少个线程, 并且通过任务队列来进行线程任务的调度, 这样可以有效避免过多线程创建线程带来的内存消耗.<br>从操作系统的角度看, 如果线程创建过多, 就会导致上下文切换频繁, 因为cpu时间片分配到下一个线程的时候, 需要存储当前线程的各种信息()</p>
+<h2 id="线程占用的内存大小是多少-主要是哪些东西组成了线程的内存"><a href="#线程占用的内存大小是多少-主要是哪些东西组成了线程的内存" class="headerlink" title="线程占用的内存大小是多少? 主要是哪些东西组成了线程的内存?"></a>线程占用的内存大小是多少? 主要是哪些东西组成了线程的内存?</h2><p>linux系统的ulimit命令可以查看执行程序的资源限制情况<br>参数: -a 显示当前所有的资源限制<br>以Android系统为例:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">➜  ~ adb shell ulimit -a</span><br><span class="line">-t: time(cpu-seconds)     unlimited</span><br><span class="line">-f: file(blocks)          unlimited</span><br><span class="line">-c: coredump(blocks)      0</span><br><span class="line">-d: data(KiB)             unlimited</span><br><span class="line">-s: stack(KiB)            8192</span><br><span class="line">-l: lockedmem(KiB)        unlimited</span><br><span class="line">-n: nofiles(descriptors)  32768</span><br><span class="line">-p: processes             27058</span><br><span class="line">-i: sigpending            27058</span><br><span class="line">-q: msgqueue(bytes)       819200</span><br><span class="line">-e: maxnice               40</span><br><span class="line">-r: maxrtprio             0</span><br><span class="line">-m: resident-set(KiB)     unlimited</span><br><span class="line">-v: address-space(KiB)    unlimited</span><br></pre></td></tr></table></figure>
+
+<p>其中-s 指的栈的最大值, 所以可以得知线程中栈的最大值为8192 &#x3D; 8 * 1024 &#x3D; 8M</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文知识对线程本身做了说明, 但是线程涉及的操作系统知识很多, 比如CPU轮询, 线程上下文处理等, 这些后续再找文章单独说明.<br>了解到线程创建的成本后, 就知道涉及线程池的目的了, 后续带着这个目的去看线程池的设计框架就能理解得比较清晰.<br>文章中的源码分析过程也是为了对真实验证创建过程的有所了解.<br>文章中还写了2个问题, 了解一些线程创建的基本限制<br>后期将会根据Java线程池框架进行分析</p>
+<p>总体来说, 线程池的好处就是: </p>
+<ul>
+<li>线程池可以通过已经创建的线程来执行任务, 而无需频繁的创建线程. 减少创建线程和销毁线程的开销</li>
+<li>通过对线程池的设计, 比如设置核心线程, 最大线程, 任务队列等, 可以有效避免线程过多创建带来的内存消耗.</li>
+</ul>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><h2 id="维基百科"><a href="#维基百科" class="headerlink" title="维基百科"></a>维基百科</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/%E7%BA%BF%E7%A8%8B%E6%B1%A0">线程池</a></li>
+</ul>
+<h2 id="网友"><a href="#网友" class="headerlink" title="网友"></a>网友</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/tera/p/13937611.html">JNI-从jvm源码分析Thread.start的调用与Thread.run的回调</a></li>
+<li><a target="_blank" rel="noopener" href="https://segmentfault.com/a/1190000025164595">下载JDK 与 Hotspot 虚拟机源码</a></li>
+<li><a target="_blank" rel="noopener" href="http://hg.openjdk.java.net/jdk8u/jdk8u60/hotspot/">hotspot源码下载</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/hollischuang/p/12453988.html">Java堆内存是线程共享的！面试官：你确定吗？</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.hollischuang.com/archives/2509">JVM内存结构 VS Java内存模型 VS Java对象模型</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_31865983/article/details/105174567">Hotspot Thread本地方法实现 源码解析</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/jerry11112/article/details/113524101">java虚拟机栈的深入了解</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/xiaolincoding/p/15013929.html">被问懵了：一个进程最多可以创建多少个线程？</a></li>
+<li><a target="_blank" rel="noopener" href="https://tech.meituan.com/2019/11/14/crash-oom-probe-practice.html">Probe：Android线上OOM问题定位组件</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/duanxz/p/3567068.html">linux参数之max_map_count</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/CringKong/article/details/79994511">Java线程和操作系统线程的关系</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.ibm.com/docs/en/i/7.2?topic=ssw_ibm_i_72/apis/users_g5.htm">pthread_attr_destroy()–Destroy Thread Attributes Object</a></li>
+</ul>
+<h2 id="书籍"><a href="#书籍" class="headerlink" title="书籍"></a>书籍</h2><ul>
+<li>java并发编程的艺术</li>
+</ul>
+
+    </article>
+    <!-- license -->
+    
+        <div class="license-wrapper">
+            <p>Author：<a href="https://caldremch.cn">Caldremch</a>
+            <p>Link：<a href="https://caldremch.cn/2022/03/09/%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%9A%84%E7%94%B1%E6%9D%A5/">https://caldremch.cn/2022/03/09/%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%9A%84%E7%94%B1%E6%9D%A5/</a>
+            <p>Publish date：<a href="https://caldremch.cn/2022/03/09/%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%9A%84%E7%94%B1%E6%9D%A5/">March 9th 2022, 12:10:29 pm</a>
+            <p>Update date：<a href="https://caldremch.cn/2022/03/09/%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%9A%84%E7%94%B1%E6%9D%A5/">May 28th 2023, 6:18:00 am</a>
+            <p>License：本文采用<a rel="license noopener" target="_blank" href="http://creativecommons.org/licenses/by-nc/4.0/">知识共享署名-非商业性使用 4.0 国际许可协议</a>进行许可</p>
+        </div>
+    
+    <!-- paginator -->
+    <ul class="post-paginator">
+        <li class="next">
+            
+                <div class="nextSlogan">Next Post</div>
+                <a href="/2022/03/15/%E5%AD%A6%E4%BC%9A%E6%8F%90%E9%97%AE-%E5%9B%9E%E7%AD%94/" title="学会提问&回答">
+                    <div class="nextTitle">学会提问&回答</div>
+                </a>
+            
+        </li>
+        <li class="previous">
+            
+                <div class="prevSlogan">Previous Post</div>
+                <a href="/2021/04/15/%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA%E8%AE%B0%E5%BD%95/" title="Hexo博客搭建记录">
+                    <div class="prevTitle">Hexo博客搭建记录</div>
+                </a>
+            
+        </li>
+    </ul>
+    <!-- comment -->
+    
+        <div class="post-comment">
+            <!-- 来必力 City 版安装代码 -->
+
+
+            
+
+            
+
+            
+
+            <!-- utteranc评论 -->
+
+
+            <!-- partial('_partial/comment/changyan') -->
+            <!--PC版-->
+
+
+            
+            
+
+            
+
+        </div>
+    
+    <!-- timeliness note -->
+    <!-- idea from: https://hexo.fluid-dev.com/posts/hexo-injector/#%E6%96%87%E7%AB%A0%E6%97%B6%E6%95%88%E6%80%A7%E6%8F%90%E7%A4%BA -->
+    
+    <!-- Mathjax -->
+    
+</main>
+
+                <!-- profile -->
+                
+            </div>
+            <footer class="footer footer-unloaded">
+    <!-- social  -->
+    
+        <div class="social">
+            
+    
+        
+            
+                <a href="mailto:finishmoend@gmail.com" class="iconfont-archer email" title=email ></a>
+            
+        
+    
+        
+            
+                <a href="https://github.com/caldremch" class="iconfont-archer github" target="_blank" title=github></a>
+            
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+
+        </div>
+    
+    <!-- powered by Hexo  -->
+    <div class="copyright">
+        <span id="hexo-power">Powered by <a href="https://hexo.io/" target="_blank">Hexo</a></span><span class="iconfont-archer power">&#xe635;</span><span id="theme-info">theme <a href="https://github.com/fi3ework/hexo-theme-archer" target="_blank">Archer</a></span>
+    </div>
+    <!-- website approve for Chinese user -->
+    
+    <!-- 不蒜子  -->
+    
+        <div class="busuanzi-container">
+            
+             
+                <span id="busuanzi_container_site_pv">PV: <span id="busuanzi_value_site_pv"></span> :)</span>
+            
+        </div>
+    	
+</footer>
+
+        </div>
+        <!-- toc -->
+        
+            <div class="toc-wrapper toc-wrapper-loding" style=
+
+
+
+
+
+
+
+    top:50vh;
+
+>
+                <div class="toc-catalog">
+                    <span class="iconfont-archer catalog-icon">&#xe613;</span><span>CATALOG</span>
+                </div>
+                <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%89%8D%E8%A8%80"><span class="toc-number">1.</span> <span class="toc-text">前言</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%BA%BF%E7%A8%8B%E6%B1%A0%E6%98%AF%E4%BB%80%E4%B9%88"><span class="toc-number">2.</span> <span class="toc-text">线程池是什么?</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E4%BC%9A%E5%87%BA%E7%8E%B0%E7%BA%BF%E7%A8%8B%E6%B1%A0"><span class="toc-number">3.</span> <span class="toc-text">为什么会出现线程池?</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%BA%BF%E7%A8%8B%E7%9A%84%E9%94%80%E6%AF%81"><span class="toc-number">4.</span> <span class="toc-text">线程的销毁</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E9%97%AE%E9%A2%98"><span class="toc-number">5.</span> <span class="toc-text">问题</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BA%BF%E7%A8%8B%E6%98%AF%E5%8F%AF%E4%BB%A5%E6%97%A0%E9%99%90%E5%88%9B%E5%BB%BA%E7%9A%84%E5%90%97"><span class="toc-number">5.1.</span> <span class="toc-text">线程是可以无限创建的吗?</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BA%BF%E7%A8%8B%E5%8D%A0%E7%94%A8%E7%9A%84%E5%86%85%E5%AD%98%E5%A4%A7%E5%B0%8F%E6%98%AF%E5%A4%9A%E5%B0%91-%E4%B8%BB%E8%A6%81%E6%98%AF%E5%93%AA%E4%BA%9B%E4%B8%9C%E8%A5%BF%E7%BB%84%E6%88%90%E4%BA%86%E7%BA%BF%E7%A8%8B%E7%9A%84%E5%86%85%E5%AD%98"><span class="toc-number">5.2.</span> <span class="toc-text">线程占用的内存大小是多少? 主要是哪些东西组成了线程的内存?</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">6.</span> <span class="toc-text">总结</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%8F%82%E8%80%83"><span class="toc-number">7.</span> <span class="toc-text">参考</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%B4%E5%9F%BA%E7%99%BE%E7%A7%91"><span class="toc-number">7.1.</span> <span class="toc-text">维基百科</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BD%91%E5%8F%8B"><span class="toc-number">7.2.</span> <span class="toc-text">网友</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B9%A6%E7%B1%8D"><span class="toc-number">7.3.</span> <span class="toc-text">书籍</span></a></li></ol></li></ol>
+            </div>
+        
+        <!-- sidebar -->
+        <div class="sidebar sidebar-hide">
+    <ul class="sidebar-tabs sidebar-tabs-active-0">
+        <li class="sidebar-tab-archives"><span class="iconfont-archer">&#xe67d;</span><span class="tab-name">Archive</span></li>
+        <li class="sidebar-tab-tags"><span class="iconfont-archer">&#xe61b;</span><span class="tab-name">Tag</span></li>
+        <li class="sidebar-tab-categories"><span class="iconfont-archer">&#xe666;</span><span class="tab-name">Cate</span></li>
+    </ul>
+    <div class="sidebar-content sidebar-content-show-archive">
+        <div class="sidebar-panel-archives">
+    <!-- 在 ejs 中将 archive 按照时间排序 -->
+    
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    
+    
+    
+    
+    <div class="total-and-search">
+        <div class="total-archive">
+        Total : 12
+        </div>
+        <!-- search  -->
+        
+    </div>
+    
+    <div class="post-archive">
+    
+        
+            
+            
+            <div class="archive-year"> 2023 </div>
+            <ul class="year-list">
+            
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/22</span>
+            <a class="archive-post-title" href="/2023/05/22/Flutter%E7%BC%96%E8%AF%91aar%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/">Flutter编译aar问题记录</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/11</span>
+            <a class="archive-post-title" href="/2023/05/11/Android-AGP%E4%B8%8Elint%E7%9A%84%E7%89%88%E6%9C%AC%E5%85%BC%E5%AE%B9%E9%97%AE%E9%A2%98/">Android AGP与lint的版本兼容问题</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/19</span>
+            <a class="archive-post-title" href="/2023/03/19/ubuntu22-04-docker%E5%AE%89%E8%A3%85/">ubuntu22.04-docker安装</a>
+        </li>
+    
+        
+            
+            
+                
+                </ul>
+            
+            <div class="archive-year"> 2022 </div>
+            <ul class="year-list">
+            
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">05/17</span>
+            <a class="archive-post-title" href="/2022/05/17/%E8%AF%81%E4%B9%A6-%E7%AD%BE%E5%90%8D-%E8%AF%81%E4%B9%A6%E9%93%BE%E5%82%BB%E5%82%BB%E5%88%86%E4%B8%8D%E6%B8%85%E6%A5%9A/">证书,数字证书, 数字签名,证书链傻傻分不清楚</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">04/09</span>
+            <a class="archive-post-title" href="/2022/04/09/%E8%BF%99%E4%BA%9B%E9%97%AE%E9%A2%98%E7%9A%84%E8%83%8C%E5%90%8E-%E4%BD%93%E7%8E%B0%E4%BD%A0%E6%98%AF%E5%90%A6%E5%96%84%E4%BA%8E%E6%80%9D%E8%80%83%E5%92%8C%E5%8F%8D%E6%80%9D/">这些问题的背后-体现你是否善于思考和反思</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/29</span>
+            <a class="archive-post-title" href="/2022/03/29/%E5%85%B3%E4%BA%8E%E7%9F%A5%E8%AF%86%E5%AD%A6%E4%B9%A0%E5%92%8C%E6%89%A9%E5%B1%95%E6%80%9D%E8%80%83/">关于知识学习和扩展思考</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/29</span>
+            <a class="archive-post-title" href="/2022/03/29/%E8%BA%AC%E8%A1%8C/">躬行</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/27</span>
+            <a class="archive-post-title" href="/2022/03/27/%E5%85%B3%E4%BA%8E%E5%9C%A8%E9%94%99%E8%AF%AF%E7%9A%84%E6%96%B9%E5%90%91%E4%BD%BF%E5%8A%B2%E7%94%A8%E5%8A%9F%E7%9A%84%E5%BF%83%E5%BE%97/">关于在错误的方向使劲用功的心得</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/19</span>
+            <a class="archive-post-title" href="/2022/03/19/%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E6%A0%B8%E5%BF%83%E6%8C%87%E5%AF%BC/">源码阅读核心指导</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/15</span>
+            <a class="archive-post-title" href="/2022/03/15/%E5%AD%A6%E4%BC%9A%E6%8F%90%E9%97%AE-%E5%9B%9E%E7%AD%94/">学会提问&回答</a>
+        </li>
+    
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/09</span>
+            <a class="archive-post-title" href="/2022/03/09/%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%9A%84%E7%94%B1%E6%9D%A5/">线程池的由来</a>
+        </li>
+    
+        
+            
+            
+                
+                </ul>
+            
+            <div class="archive-year"> 2021 </div>
+            <ul class="year-list">
+            
+        
+        <li class="archive-post-item">
+            <span class="archive-post-date">04/15</span>
+            <a class="archive-post-title" href="/2021/04/15/%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA%E8%AE%B0%E5%BD%95/">Hexo博客搭建记录</a>
+        </li>
+    
+    </div>
+</div>
+
+        <div class="sidebar-panel-tags">
+    <div class="sidebar-tags-name">
+        
+            <span class="sidebar-tag-name" data-tags="问题记录">
+                <span class="iconfont-archer">&#xe606;</span>
+                问题记录
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="持续更新">
+                <span class="iconfont-archer">&#xe606;</span>
+                持续更新
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="个人心得">
+                <span class="iconfont-archer">&#xe606;</span>
+                个人心得
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="博客搭建">
+                <span class="iconfont-archer">&#xe606;</span>
+                博客搭建
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="表达能力">
+                <span class="iconfont-archer">&#xe606;</span>
+                表达能力
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="生活">
+                <span class="iconfont-archer">&#xe606;</span>
+                生活
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="工作">
+                <span class="iconfont-archer">&#xe606;</span>
+                工作
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="学习心得">
+                <span class="iconfont-archer">&#xe606;</span>
+                学习心得
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="线程池">
+                <span class="iconfont-archer">&#xe606;</span>
+                线程池
+            </span>
+        
+            <span class="sidebar-tag-name" data-tags="SSL/TLS">
+                <span class="iconfont-archer">&#xe606;</span>
+                SSL/TLS
+            </span>
+        
+    </div>
+    <div class="iconfont-archer sidebar-tags-empty">&#xe678;</div>
+    <div class="tag-load-fail" style="display: none; color: #ccc; font-size: 0.6rem;">
+        缺失模块，请参考主题文档进行安装配置：https://github.com/fi3ework/hexo-theme-archer#%E5%AE%89%E8%A3%85%E4%B8%BB%E9%A2%98
+    </div> 
+    <div class="sidebar-tags-list"></div>
+</div>
+
+        <div class="sidebar-panel-categories">
+    <div class="sidebar-categories-name">
+    
+        <span class="sidebar-category-name" data-categories="源码解析">
+            <span class="iconfont-archer">&#xe60a;</span>
+            源码解析
+        </span>
+    
+        <span class="sidebar-category-name" data-categories="网络之道">
+            <span class="iconfont-archer">&#xe60a;</span>
+            网络之道
+        </span>
+    
+        <span class="sidebar-category-name" data-categories="个人心得">
+            <span class="iconfont-archer">&#xe60a;</span>
+            个人心得
+        </span>
+    
+    </div>
+    <div class="iconfont-archer sidebar-categories-empty">&#xe678;</div>
+    <div class="sidebar-categories-list"></div>
+</div>
+
+    </div>
+</div>
+
+        <!-- site-meta -->
+        <script>
+    var siteMetaRoot = "/"
+    if (siteMetaRoot === "undefined") {
+        siteMetaRoot = '/'
+    }
+    var siteMeta = {
+        url: "https://caldremch.cn",
+        root: siteMetaRoot,
+        author: "Caldremch"
+    }
+</script>
+
+        <!-- import experimental options here -->
+        <!-- Custom Font -->
+
+
+        <!-- main func -->
+        <script src="/scripts/main.js?v=20211217"></script>
+        <!-- dark mode -->
+        <script src="/scripts/dark.js?v=20211217"></script>
+        <!-- fancybox -->
+        <script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js" defer></script>
+        <!-- algolia -->
+        
+        <!-- busuanzi -->
+        
+            <script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" async></script>
+        
+        <!-- CNZZ -->
+        
+        <!-- async load share.js -->
+        
+            <script src="/scripts/share.js?v=20211217" async></script>
+        
+        <!-- mermaid -->
+        
+    </body>
+</html>
